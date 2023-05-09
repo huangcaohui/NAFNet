@@ -43,7 +43,7 @@ datasets:
 
 
 network_g:
-  type: NAFNetLocal   # network name, see in models/archs/NAFNet_arch.py
+  type: NAFNetLocalEven   # network name, see in models/archs/NAFNet_arch*.py
   width: 32
   enc_blk_nums: [1, 1, 1, 14]
   middle_blk_num: 1

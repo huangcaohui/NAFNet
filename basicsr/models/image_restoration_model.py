@@ -433,8 +433,8 @@ class ImageRestorationModel(BaseModel):
                                              f'{img_name}_{current_iter}.png')
                     
                     save_gt_img_path = osp.join(self.opt['path']['visualization'],
-                                             img_name,
-                                             f'{img_name}_{current_iter}_gt.png')
+                                                img_name,
+                                                f'{img_name}_{current_iter}_gt.png')
                 else:
                     
                     save_img_path = osp.join(
