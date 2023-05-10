@@ -26,7 +26,7 @@ datasets:
 
 # network structures
 network_g:
-  type: NAFNetLocal
+  type: NAFNetLocalEven
   width: 32
   enc_blk_nums: [1, 1, 1, 14]
   middle_blk_num: 1

@@ -34,7 +34,7 @@ class NAFBlock(nn.Module):
 
         self.conv1 = nn.Conv2d(in_channels=c, out_channels=dw_channel, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
         self.conv2 = nn.Conv2d(in_channels=dw_channel, out_channels=dw_channel, kernel_size=2, padding=0, stride=1, groups=dw_channel,
-                               bias=True)   # manual padding
+                               bias=True)   # depthwise convolution , manual padding
         self.conv3 = nn.Conv2d(in_channels=dw_channel // 2, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
 
         # Simplified Channel Attention
@@ -61,6 +61,7 @@ class NAFBlock(nn.Module):
         self.gamma = nn.Parameter(torch.zeros((1, c, 1, 1)), requires_grad=True)
 
     def forward(self, inp):
+        # The image has the same size before and after passing through the block
         x = inp
 
         x = self.norm1(x)
@@ -68,10 +69,10 @@ class NAFBlock(nn.Module):
         x = self.conv1(x)
 
         # manual padding in four directions
-        xg = [x[:, i*self.c//4:(i+1)*self.c//4, :, :] for i in range(4)]
+        x = [x[:, i*self.c//4:(i+1)*self.c//4, :, :] for i in range(4)]
         position = {(1, 0, 1, 0), (0, 1, 1, 0), (1, 0, 0, 1), (0, 1, 0, 1)}
-        xg = [F.pad(group, offset) for group, offset in zip(xg, position)]
-        x = torch.cat(xg, dim=1)
+        x = [F.pad(group, offset) for group, offset in zip(x, position)]
+        x = torch.cat(x, dim=1)
         x = self.conv2(x)
 
         x = self.sg(x)
@@ -97,10 +98,10 @@ class NAFNet(nn.Module):
         super().__init__()
 
         # even convolution, will manual padding before conv, initial top left corner and end bottom right corner padding to eliminate offset
-        self.intro = nn.Conv2d(in_channels=img_channel, out_channels=width, kernel_size=2, padding=0, stride=1, groups=1,
-                              bias=True)
-        self.ending = nn.Conv2d(in_channels=width, out_channels=img_channel, kernel_size=2, padding=0, stride=1, groups=1,
-                              bias=True)
+        self.intro = nn.Conv2d(in_channels=img_channel, out_channels=width, kernel_size=4, padding=0, stride=1, groups=1,
+                               bias=True)
+        self.ending = nn.Conv2d(in_channels=width, out_channels=img_channel, kernel_size=4, padding=0, stride=1, groups=1,
+                                bias=True)
 
         self.encoders = nn.ModuleList()
         self.decoders = nn.ModuleList()
@@ -109,7 +110,7 @@ class NAFNet(nn.Module):
         self.downs = nn.ModuleList()
 
         chan = width
-        for num in enc_blk_nums:
+        for num in enc_blk_nums:    # downsample num times
             self.encoders.append(
                 nn.Sequential(
                     *[NAFBlock(chan) for _ in range(num)]
@@ -125,7 +126,7 @@ class NAFNet(nn.Module):
                 *[NAFBlock(chan) for _ in range(middle_blk_num)]
             )
 
-        for num in dec_blk_nums:
+        for num in dec_blk_nums:    # upsample num times
             self.ups.append(
                 nn.Sequential(
                     nn.Conv2d(chan, chan * 2, 1, bias=False),
@@ -145,7 +146,7 @@ class NAFNet(nn.Module):
         B, C, H, W = inp.shape
         inp = self.check_image_size(inp)
 
-        x = F.pad(inp, (1, 0, 1, 0))      # padding in the left top
+        x = F.pad(inp, (2, 1, 2, 1))      # padding in the left top
         x = self.intro(x)
 
         encs = []
@@ -162,7 +163,7 @@ class NAFNet(nn.Module):
             x = x + enc_skip
             x = decoder(x)
 
-        x = F.pad(x, (0, 1, 0, 1))          # padding in the right bottom
+        x = F.pad(x, (1, 2, 1, 2))          # padding in the right bottom
         x = self.ending(x)
         x = x + inp
 
@@ -202,12 +203,12 @@ if __name__ == '__main__':
     dec_blks = [1, 1, 1, 1]
 
     net = NAFNet(img_channel=img_channel, width=width, middle_blk_num=middle_blk_num,
-                      enc_blk_nums=enc_blks, dec_blk_nums=dec_blks)
+                      enc_blk_nums=enc_blks, dec_blk_nums=dec_blks).cuda()
 
 
     inp_shape = (3, 256, 256)
 
-    # data = torch.randn(inp_shape)
+    # data = torch.randn(inp_shape).cuda()
     # net(data)
 
     from ptflops import get_model_complexity_info
