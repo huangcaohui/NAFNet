@@ -84,7 +84,7 @@ class RandomDegradationImageDataset(data.Dataset):
             exter_size=(80, 60),                            # 相机外部尺寸，单位mm
             N=(80, 100, 150, 180, 200, 250),                # 屏蔽网的可选目数
             # d=(40e-3, 64e-3),                               # 光栅常数d的范围，单位um -> mm
-            ratio=(0.85, 0.95),                              # 光栅透光部分a相对于d的比例
+            ratio=(0.85, 0.95),                             # 光栅透光部分a相对于d的比例
             f=(30, 35, 40, 45, 50),                         # 相机的可选焦距，单位mm
             surf_size=(2/3, 1/2, 1/3, 1/4),                 # 相机可选靶面尺寸，单位英寸
             res=((1920, 1080), (3840, 2160)),               # 相机可选分辨率
@@ -114,6 +114,10 @@ class RandomDegradationImageDataset(data.Dataset):
 
         return params
 
+    def reset_degradation_params(self):
+        params = self.random_degradation()
+        self.psf.__init__(**params)
+
     def __getitem__(self, index):
         if self.file_client is None:
             self.file_client = FileClient(
@@ -136,21 +140,19 @@ class RandomDegradationImageDataset(data.Dataset):
         # img_bytes = self.file_client.get(lq_path, 'lq')
         # try:
         #     img_lq = imfrombytes(img_bytes, float32=True)
-        # except:
+        # except Exception:
         #     raise Exception("lq path {} not working".format(lq_path))
-
         img_lq = None
         thresh_rng = self.range_deg_params["thresh"]
         thresh = random.uniform(thresh_rng[0], thresh_rng[1])
 
         while True:
             try:
-                params = self.random_degradation()
-                self.psf.__init__(**params)
                 img_lq = self.psf.blur_image(img_gt, thresh)
                 break
             except Exception:
                 logger.debug("Blur kernel invalid, tyr again...")
+                self.reset_degradation_params()
 
         # augmentation for training
         if self.opt['phase'] == 'train':
