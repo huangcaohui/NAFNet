@@ -14,10 +14,13 @@ from basicsr.data.transforms import augment, paired_random_crop
 from basicsr.utils import FileClient, imfrombytes, img2tensor, padding, get_root_logger
 
 import sys
+import random
+import multiprocessing as mp
+
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[3]))
-from psf import PSF, range_deg_params
-import random
+from degradation import GaussianBlur, GaussianNoise, PSF, range_deg_params
+
 
 logger = get_root_logger()
 
@@ -48,6 +51,7 @@ class RandomDegradationImageDataset(data.Dataset):
             use_flip (bool): Use horizontal flips.
             use_rot (bool): Use rotation (use vertical flip and transposing h
                 and w for implementation).
+            use_psf (bool): Use random psf.
 
             scale (bool): Scale, which will be added automatically.
             phase (str): 'train' or 'val'.
@@ -81,45 +85,71 @@ class RandomDegradationImageDataset(data.Dataset):
 
         self.psf = PSF(**PSF.random_degradation())
 
+        # parallel read ground truth images
+        if self.file_client is None:
+            self.file_client = FileClient(
+                self.io_backend_opt.pop('type'), **self.io_backend_opt)
+        
+        pool = mp.Pool(initializer=RandomDegradationImageDataset.init_parallel, initargs=(mp.Lock(),))
+        cnt = mp.Manager().Value('i', 1)
+        self.imgs_gt = []
+
+        for path in self.paths:
+            result = pool.apply_async(RandomDegradationImageDataset.parallel_read,
+                                      args=(path, self.file_client, cnt, len(self.paths)))
+            self.imgs_gt.append(result)
+
+        pool.close()
+        pool.join()
+
+        self.imgs_gt = [result.get() for result in self.imgs_gt]
+
+    @classmethod
+    def init_parallel(cls, lk):
+        global lock
+        lock = lk
+
+    @classmethod
+    def parallel_read(cls, path, file_client, cnt, files_num):
+        img_bytes = file_client.get(path, 'gt')
+        try:
+            img_gt = imfrombytes(img_bytes, float32=True)
+        except Exception:
+            raise Exception("gt path {} not working".format(path))
+
+        with lock:
+            print(f"Progress: {cnt.value} / {files_num}, {path} finished!", flush=True)
+            cnt.value += 1
+
+        return img_gt
+
     def reset_degradation_params(self):
         params = PSF.random_degradation()
         self.psf.__init__(**params)
 
     def __getitem__(self, index):
-        if self.file_client is None:
-            self.file_client = FileClient(
-                self.io_backend_opt.pop('type'), **self.io_backend_opt)
-
         scale = self.opt['scale']
 
         # Load gt images. Dimension order: HWC; channel order: BGR;
         # image range: [0, 1], float32.
         gt_path = self.paths[index]
-        # print('gt path,', gt_path)
-        img_bytes = self.file_client.get(gt_path, 'gt')
-        try:
-            img_gt = imfrombytes(img_bytes, float32=True)
-        except Exception:
-            raise Exception("gt path {} not working".format(gt_path))
+        img_gt = self.imgs_gt[index]
+        
+        blur_img = GaussianBlur(img_gt, 5, random.uniform(0.1, 0.8))
 
-        # lq_path = self.paths[index]['lq_path']
-        # # print(', lq path', lq_path)
-        # img_bytes = self.file_client.get(lq_path, 'lq')
-        # try:
-        #     img_lq = imfrombytes(img_bytes, float32=True)
-        # except Exception:
-        #     raise Exception("lq path {} not working".format(lq_path))
-        img_lq = None
-        thresh_rng = range_deg_params["thresh"]
-        thresh = random.uniform(thresh_rng[0], thresh_rng[1])
+        if self.opt['use_psf']:
+            thresh_rng = range_deg_params["thresh"]
+            thresh = random.uniform(thresh_rng[0], thresh_rng[1])
 
-        while True:
-            try:
-                img_lq = self.psf.blur_image(img_gt, thresh)
-                break
-            except Exception:
-                logger.debug("Blur kernel invalid, tyr again...")
-                self.reset_degradation_params()
+            while True:
+                try:
+                    blur_img = self.psf.blur_image(blur_img, thresh)
+                    break
+                except Exception:
+                    logger.debug("Blur kernel invalid, tyr again...")
+                    self.reset_degradation_params()
+
+        img_lq = GaussianNoise(blur_img, 0, random.uniform(4, 5)).astype('float32')
 
         # augmentation for training
         if self.opt['phase'] == 'train':
