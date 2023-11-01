@@ -15,8 +15,8 @@ datasets:
   train:
     name: dashboard-train
     type: RandomDegradationImageDataset
-    dataroot_gt: E:\HCH\graduate\research_1\NAFNet\datasets\dashboard.v2i.voc\train\gt
-    dataroot_lq: E:\HCH\graduate\research_1\NAFNet\datasets\dashboard.v2i.voc\train\lq
+    dataroot_gt: ./datasets/dashboard/train/gt
+    dataroot_lq: ./datasets/dashboard/train/lq
 
     filename_tmpl: '{}'
     io_backend:
@@ -25,19 +25,20 @@ datasets:
     gt_size: 128    # Cropped patched size for gt patches.
     use_flip: true
     use_rot: true
+    use_psf: false  # whether to use psf for degradation
 
     # data loader
     use_shuffle: true
-    num_worker_per_gpu: 20
-    batch_size_per_gpu: 50
+    num_worker_per_gpu: 32
+    batch_size_per_gpu: 70
     dataset_enlarge_ratio: 1
     prefetch_mode: ~
 
   val:
     name: dashboard-val
     type: PairedImageDataset
-    dataroot_gt: E:\HCH\graduate\research_1\NAFNet\datasets\dashboard.v2i.voc\val\gt
-    dataroot_lq: E:\HCH\graduate\research_1\NAFNet\datasets\dashboard.v2i.voc\val\lq
+    dataroot_gt: ./datasets/dashboard/val/gt
+    dataroot_lq: ./datasets/dashboard/val/lq
     io_backend:
       type: disk
 
@@ -64,10 +65,10 @@ train:
 
   scheduler:
     type: TrueCosineAnnealingLR
-    T_max: 8000
+    T_max: 4000
     eta_min: !!float 1e-7
 
-  total_iter: 8000
+  total_iter: 4000
   warmup_iter: -1 # no warm up
 
   # losses

@@ -18,9 +18,8 @@ datasets:
     name: dashboard-test
     type: PairedImageDataset
 
-    dataroot_gt: E:\HCH\graduate\research_1\NAFNet\datasets\dashboard.v2i.voc\val\gt
-    dataroot_lq: E:\HCH\graduate\research_1\NAFNet\datasets\dashboard.v2i.voc\val\lq
-
+    dataroot_gt: ./NAFNet/datasets/dashboard/val/gt
+    dataroot_lq: ./NAFNet/datasets/dashboard/val/lq
     io_backend:
       type: disk
 

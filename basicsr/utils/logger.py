@@ -76,13 +76,10 @@ class MessageLogger():
             message += f'{k}: {v:.4e} '
             # tensorboard logger
             if self.use_tb_logger and 'debug' not in self.exp_name:
-                normed_step = 10000 * (current_iter / total_iter)
-                normed_step = int(normed_step)
-
                 if k.startswith('l_'):
-                    self.tb_logger.add_scalar(f'losses/{k}', v, normed_step)
+                    self.tb_logger.add_scalar(f'losses/{k}', v, current_iter)
                 elif k.startswith('m_'):
-                    self.tb_logger.add_scalar(f'metrics/{k}', v, normed_step)
+                    self.tb_logger.add_scalar(f'metrics/{k}', v, current_iter)
                 else:
                     assert 1 == 0
                 # else:
