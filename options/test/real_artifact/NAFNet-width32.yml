@@ -18,8 +18,8 @@ datasets:
     name: real-artifact-test
     type: PairedImageDataset
 
-    dataroot_gt: ./datasets/real_artifact/val/gt
-    dataroot_lq: ./datasets/real_artifact/val/lq
+    dataroot_gt: ./datasets/real_artifact_165/val/gt
+    dataroot_lq: ./datasets/real_artifact_165/val/lq
     io_backend:
       type: disk
 

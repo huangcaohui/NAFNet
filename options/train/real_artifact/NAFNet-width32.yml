@@ -15,8 +15,8 @@ datasets:
   train:
     name: real-artifact-train
     type: PairedImageDataset
-    dataroot_gt: ./datasets/real_artifact/train/gt
-    dataroot_lq: ./datasets/real_artifact/train/lq
+    dataroot_gt: ./datasets/real_artifact_165/train/gt
+    dataroot_lq: ./datasets/real_artifact_165/train/lq
 
     filename_tmpl: '{}'
     io_backend:
@@ -29,16 +29,16 @@ datasets:
 
     # data loader
     use_shuffle: true
-    num_worker_per_gpu: 2
-    batch_size_per_gpu: 2
+    num_worker_per_gpu: 1
+    batch_size_per_gpu: 1
     dataset_enlarge_ratio: 1
     prefetch_mode: ~
 
   val:
     name: real-artifact-val
     type: PairedImageDataset
-    dataroot_gt: ./datasets/real_artifact/val/gt
-    dataroot_lq: ./datasets/real_artifact/val/lq
+    dataroot_gt: ./datasets/real_artifact_165/val/gt
+    dataroot_lq: ./datasets/real_artifact_165/val/lq
     io_backend:
       type: disk
 
@@ -65,10 +65,10 @@ train:
 
   scheduler:
     type: TrueCosineAnnealingLR
-    T_max: 2000
+    T_max: 20000
     eta_min: !!float 1e-7
 
-  total_iter: 2000
+  total_iter: 20000
   warmup_iter: -1 # no warm up
 
   # losses
@@ -79,7 +79,7 @@ train:
 
 # validation settings
 val:
-  val_freq: !!float 200
+  val_freq: !!float 500
   save_img: false
 
   metrics:
@@ -95,7 +95,7 @@ val:
 # logging settings
 logger:
   print_freq: 5
-  save_checkpoint_freq: !!float 500
+  save_checkpoint_freq: !!float 4000
   use_tb_logger: true
   wandb:
     project: ~
