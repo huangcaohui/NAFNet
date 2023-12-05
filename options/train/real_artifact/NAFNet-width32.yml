@@ -22,7 +22,7 @@ datasets:
     io_backend:
       type: disk
 
-    gt_size: 512    # Cropped patched size for gt patches.
+    gt_size: 720    # Cropped patched size for gt patches.
     use_flip: true
     use_rot: true
     use_psf: false  # whether to use psf for degradation
@@ -65,10 +65,10 @@ train:
 
   scheduler:
     type: TrueCosineAnnealingLR
-    T_max: 20000
+    T_max: 25000
     eta_min: !!float 1e-7
 
-  total_iter: 20000
+  total_iter: 25000
   warmup_iter: -1 # no warm up
 
   # losses
